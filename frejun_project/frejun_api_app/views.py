@@ -1,4 +1,5 @@
 import redis
+from datetime import timedelta
 from django.core.cache import cache
 from django.conf import settings
 from django.shortcuts import render
@@ -14,7 +15,8 @@ from .serializers import AccountSerializer
 
 CACHE_TTL = getattr(settings, 'CACHE_TTL', DEFAULT_TIMEOUT)
 redis_instance = redis.StrictRedis(host=settings.REDIS_HOST,
-                                  port=settings.REDIS_PORT, db=0)
+                                   port=settings.REDIS_PORT, db=0)
+
 
 def index(request):
     return HttpResponse("Welcome to FreJun API.")
@@ -23,7 +25,7 @@ def index(request):
 def data_validation(input_param, txt: str) -> dict:
     """Validation code for the input parameters."""
     data_dictionary = {'message': '', 'errors': ''}
-    if input_param is None: # checks if input_param is None
+    if input_param is None:  # checks if input_param is None
         data_dictionary['errors'] = txt + ' is missing'
     else:   # check the length of strings
         if txt == 'text':
@@ -34,7 +36,6 @@ def data_validation(input_param, txt: str) -> dict:
                 data_dictionary['errors'] = txt + ' is invalid'
 
     return data_dictionary
-
 
 
 @csrf_exempt
@@ -48,28 +49,25 @@ def inbound(request):
             frm = data.get('from', None)
             to = data.get('to', None)
             text = data.get('text', None)
-            input_params_list = [(frm,'from'), (to, 'to'), (text, 'text')] 
+            input_params_list = [(frm, 'from'), (to, 'to'), (text, 'text')]
             # Looping through the parameters
-            for k,v in input_params_list:
+            for k, v in input_params_list:
                 res_dict = data_validation(k, v)
                 if res_dict['errors'] != '':
                     return Response(res_dict)
 
-            # Checking if "to" is present in PhoneNumber model for this account 
+            # Checking if "to" is present in PhoneNumber model for this account
             try:
                 account_id = Account.objects.get(username=account)
                 ph = PhoneNumber.objects.get(account=account_id, number=to)
             except PhoneNumber.DoesNotExist:
-                return Response({'message': '', 'errors': 'to parameter not found'})
-            
+                return Response({'message': '', 'error': 'to parameter not found'})
+
             # Caching the from and to pair for 4 hours if text is STOP
             if text.strip() == 'STOP':
-                if redis_instance.get(frm):
-                    print('FOUND IN CACHE.')
-                else:
-                    redis_instance.set(frm, to)
-                    #redis_instance.set("to", to)
-                    print("DATA STORED IN CACHE")
+                entry = f"{frm} | {to}"
+                # put into cache and expires in 4 hours
+                redis_instance.set(entry, entry, timedelta(hours=4))
 
             return Response({'message': 'inbound sms ok', 'error': ''}, status=status.HTTP_200_OK)
         else:
@@ -88,24 +86,42 @@ def outbound(request):
             frm = data.get('from', None)
             to = data.get('to', None)
             text = data.get('text', None)
-            input_params_list = [(frm,'from'), (to, 'to'), (text, 'text')] 
+            input_params_list = [(frm, 'from'), (to, 'to'), (text, 'text')]
             # Looping through the parameters
-            for k,v in input_params_list:
+            for k, v in input_params_list:
                 res_dict = data_validation(k, v)
                 if res_dict['errors'] != '':
                     return Response(res_dict)
 
-            # Checking if "from" is present in PhoneNumber model for this account 
+            # Checking if "from" is present in PhoneNumber model for this account
             try:
                 account_id = Account.objects.get(username=account)
                 ph = PhoneNumber.objects.get(account=account_id, number=frm)
             except PhoneNumber.DoesNotExist:
-                return Response({'message': '', 'errors': 'from parameter not found'})
+                return Response({'message': '', 'error': 'from parameter not found'})
+
+            # Block SMS
+            entry = f"{to} | {frm}"
+            if redis_instance.get(entry):
+                error_msg = f"sms from {frm} to {to} blocked by STOP request"
+                return Response({'message': '', 'errors': error_msg})
+
+            # API Ratelimiting to 50 requests from <from>
+            if redis_instance.hget(frm, 'quota'):  # If frm is already present
+                quota = int(redis_instance.hget(frm, 'quota'))
+                if quota < 1:
+                    error_msg = f"limit reached for from {frm}"
+                    return Response({'message': '', 'error': error_msg})
+                else:   # Decrementing the quota
+                    quota -= 1
+                    redis_instance.hset(frm, 'quota', quota)
+
+            else:   # If frm is not already present - Set the key to frm and quota to 50
+                redis_instance.hset(frm, 'quota', 50)
+                # expire the key after 24 hours
+                redis_instance.expire(frm, timedelta(days=1))
 
             return Response({'message': 'outbound sms ok', 'error': ''}, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
     return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    
-
-
