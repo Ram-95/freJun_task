@@ -9,6 +9,9 @@ class Account(models.Model):
         managed = False
         db_table = 'account'
 
+    def __str__(self):
+        return f"Account({self.auth_id}, {self.username})"
+
 
 class PhoneNumber(models.Model):
     number = models.CharField(max_length=40, blank=True, null=True)
@@ -18,3 +21,6 @@ class PhoneNumber(models.Model):
     class Meta:
         managed = False
         db_table = 'phone_number'
+
+    def __str__(self):
+        return f"PhoneNumber({self.number}, {self.account})"
