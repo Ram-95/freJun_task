@@ -19,11 +19,11 @@ class TestViews(SimpleTestCase):
         self.ph4 = PhoneNumber.objects.create(number="441873440028", account=self.account2)
     """
 
-    def test_fail_if_not_authenticated_POST(self):
+    def test_inbound_fail_if_not_authenticated_POST(self):
         data = {
             "username": "pliv5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
             "text": "STOP\r\n"
 
@@ -32,11 +32,11 @@ class TestViews(SimpleTestCase):
         response = requests.post(inbound_url, json=data)
         self.assertEquals(response.status_code, 403)
 
-    def test_pass_if_authenticated_POST(self):
+    def test_inbound_pass_if_authenticated_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
             "text": "STOP\r\n"
 
@@ -45,11 +45,11 @@ class TestViews(SimpleTestCase):
         response = requests.post(inbound_url, json=data)
         self.assertEquals(response.status_code, 200)
 
-    def test_fail_if_method_is_GET(self):
+    def test_inbound_fail_if_method_is_GET(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
             "text": "STOP\r\n"
 
@@ -58,11 +58,11 @@ class TestViews(SimpleTestCase):
         response = requests.get(inbound_url, json=data)
         self.assertEquals(response.status_code, 405)
 
-    def test_fail_if_method_is_PUT(self):
+    def test_inbound_fail_if_method_is_PUT(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
             "text": "STOP\r\n"
 
@@ -71,11 +71,11 @@ class TestViews(SimpleTestCase):
         response = requests.put(inbound_url, json=data)
         self.assertEquals(response.status_code, 405)
 
-    def test_fail_if_method_is_DELETE(self):
+    def test_inbound_fail_if_method_is_DELETE(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
             "text": "STOP\r\n"
 
@@ -84,7 +84,7 @@ class TestViews(SimpleTestCase):
         response = requests.delete(inbound_url, json=data)
         self.assertEquals(response.status_code, 405)
 
-    def test_from_missing_POST(self):
+    def test_inbound_from_missing_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -98,7 +98,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "from is missing"})
 
-    def test_to_missing_POST(self):
+    def test_inbound_to_missing_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -112,11 +112,11 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "to is missing"})
 
-    def test_text_missing_POST(self):
+    def test_inbound_text_missing_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
-            "from": "9652928967",
+            "from": "9528631470",
             "to": "61871112939",
         }
         inbound_url = 'http://localhost:8000/api/inbound/sms'
@@ -125,7 +125,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "text is missing"})
 
-    def test_from_invalid_length_small_POST(self):
+    def test_inbound_from_invalid_length_small_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -140,7 +140,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "from is invalid"})
 
-    def test_from_invalid_length_large_POST(self):
+    def test_inbound_from_invalid_length_large_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -155,7 +155,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "from is invalid"})
 
-    def test_to_invalid_length_small_POST(self):
+    def test_inbound_to_invalid_length_small_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -170,7 +170,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "to is invalid"})
 
-    def test_to_invalid_length_large_POST(self):
+    def test_inbound_to_invalid_length_large_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -185,7 +185,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "to is invalid"})
 
-    def test_text_invalid_length_small_POST(self):
+    def test_inbound_text_invalid_length_small_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -200,7 +200,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "text is invalid"})
 
-    def test_text_invalid_length_large_POST(self):
+    def test_inbound_text_invalid_length_large_POST(self):
         test_text_data = 'x'*121
         data = {
             "username": "plivo5",
@@ -216,7 +216,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "text is invalid"})
 
-    def test_to_parameter_not_found_POST(self):
+    def test_inbound_to_parameter_not_found_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
@@ -231,7 +231,7 @@ class TestViews(SimpleTestCase):
         self.assertJSONEqual(str(response.content, encoding='utf8'), {
                              "message": "", "error": "to parameter not found"})
 
-    def test_all_parameters_valid_POST(self):
+    def test_inbound_all_parameters_valid_POST(self):
         data = {
             "username": "plivo5",
             "auth_id": "6DLH8A25XZ",
