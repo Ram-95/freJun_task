@@ -19,21 +19,21 @@ redis_instance = redis.StrictRedis(host=settings.REDIS_HOST,
 
 
 def index(request):
-    return HttpResponse("Welcome to FreJun API.")
+    return HttpResponse("<h2>Welcome to FreJun API</h2>")
 
 
 def data_validation(input_param, txt: str) -> dict:
     """Validation code for the input parameters."""
-    data_dictionary = {'message': '', 'errors': ''}
+    data_dictionary = {'message': '', 'error': ''}
     if input_param is None:  # checks if input_param is None
-        data_dictionary['errors'] = txt + ' is missing'
+        data_dictionary['error'] = txt + ' is missing'
     else:   # check the length of strings
         if txt == 'text':
             if len(input_param) not in range(1, 121):
-                data_dictionary['errors'] = txt + ' is invalid'
+                data_dictionary['error'] = txt + ' is invalid'
         else:
             if len(input_param) not in range(6, 17):
-                data_dictionary['errors'] = txt + ' is invalid'
+                data_dictionary['error'] = txt + ' is invalid'
 
     return data_dictionary
 
@@ -53,7 +53,7 @@ def inbound(request):
             # Looping through the parameters
             for k, v in input_params_list:
                 res_dict = data_validation(k, v)
-                if res_dict['errors'] != '':
+                if res_dict['error'] != '':
                     return Response(res_dict)
 
             # Checking if "to" is present in PhoneNumber model for this account
@@ -68,6 +68,7 @@ def inbound(request):
                 entry = f"{frm} | {to}"
                 # put into cache and expires in 4 hours
                 redis_instance.set(entry, entry, timedelta(hours=4))
+                print("STORE FROM/TO PAIR [{entry}] TO CACHE WITH EXPIRY = 4 HRS")
 
             return Response({'message': 'inbound sms ok', 'error': ''}, status=status.HTTP_200_OK)
         else:
@@ -90,7 +91,7 @@ def outbound(request):
             # Looping through the parameters
             for k, v in input_params_list:
                 res_dict = data_validation(k, v)
-                if res_dict['errors'] != '':
+                if res_dict['error'] != '':
                     return Response(res_dict)
 
             # Checking if "from" is present in PhoneNumber model for this account
@@ -103,11 +104,13 @@ def outbound(request):
             # Block SMS
             entry = f"{to} | {frm}"
             if redis_instance.get(entry):
+                print("FETCHING TO/FROM [{entry}] PAIR DATA FROM CACHE.")
                 error_msg = f"sms from {frm} to {to} blocked by STOP request"
-                return Response({'message': '', 'errors': error_msg})
+                return Response({'message': '', 'error': error_msg})
 
             # API Ratelimiting to 50 requests from <from>
             if redis_instance.hget(frm, 'quota'):  # If frm is already present
+                print(f"FETCHING THE API QUOTA LIMIT FOR {frm}")
                 quota = int(redis_instance.hget(frm, 'quota'))
                 if quota < 1:
                     error_msg = f"limit reached for from {frm}"
@@ -118,8 +121,10 @@ def outbound(request):
 
             else:   # If frm is not already present - Set the key to frm and quota to 50
                 redis_instance.hset(frm, 'quota', 50)
+                print("STORING THE FROM: {frm} AND QUOTA TO 50.")
                 # expire the key after 24 hours
                 redis_instance.expire(frm, timedelta(days=1))
+                print("SETTING THE EXPIRY OF FROM: {frm} TO 24 HOURS.")
 
             return Response({'message': 'outbound sms ok', 'error': ''}, status=status.HTTP_200_OK)
         else:
